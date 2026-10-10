@@ -29,8 +29,8 @@ repository holds the submodule links and the Makefile only.
 Clone the parent repository and all submodules in one command.
 
 ```sh
-git clone --recurse-submodules <parent-repo-url>
-cd <parent-dir>
+git clone --recurse-submodules https://github.com/galtrhan/artcraft.git
+cd artcraft
 ```
 
 If you already have the parent repository, get the submodules now.
