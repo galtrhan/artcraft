@@ -24,52 +24,50 @@ builds, installs and updates them.
 Each application is a Rust workspace. The application code stays in the submodule. The parent
 repository holds the submodule links and the Makefile only.
 
-## Get the source
+## Install
 
-Clone the parent repository and all submodules in one command.
+Install all twelve applications with three commands.
 
 ```sh
 git clone --recurse-submodules https://github.com/galtrhan/artcraft.git
 cd artcraft
+make install
 ```
 
-If you already have the parent repository, get the submodules now.
+The third line is a make target. Use the target you need. `make` alone shows the help.
+
+`make install` builds every application and installs it into `$HOME/.local`. A user install
+needs no root. It writes the two binaries, and on Linux the desktop entry, the file types, the
+AppStream metadata and the icons. The applications then appear in your launcher.
+
+Set `PROJECT` to a submodule name to act on one application.
+
+```sh
+make install PROJECT=gridcraft
+```
+
+A system install uses `/usr/local` and root. Do not run `git pull` as root. Give the privilege
+command to the install step only.
+
+```sh
+make install PREFIX=/usr/local SUDO=sudo
+```
+
+If you already have the repository, get the submodules and install later.
 
 ```sh
 git submodule update --init --recursive
 ```
 
-## Build, install and update
-
-A bare `make` shows the help. Set `PROJECT` to the submodule name to act on one application.
+## Common targets
 
 ```sh
-make                                      # show the help
-make build   PROJECT=gridcraft            # build the binaries
-make run     PROJECT=gridcraft            # start from source
-make install PROJECT=gridcraft            # install (needs root for /usr/local)
-make update  PROJECT=gridcraft            # git pull, then build and install
-```
-
-If you do not set `PROJECT`, the target runs for **every** application. For example, this
-command installs all twelve applications:
-
-```sh
-make install PREFIX=$HOME/.local
-```
-
-A user install needs no root. Set `PREFIX` to your home directory.
-
-```sh
-make install PROJECT=gridcraft PREFIX=$HOME/.local
-make update  PROJECT=gridcraft PREFIX=$HOME/.local
-```
-
-A system install needs root for the install step. Do not run `git pull` as root. Give the
-privilege command to the install step only.
-
-```sh
-make update PROJECT=gridcraft SUDO=sudo
+make                # show the help
+make install        # build and install every application
+make build          # build every application, without install
+make update         # git pull, then build and install every application
+make uninstall      # remove the installed files
+make run            # start an application from source
 ```
 
 ## Targets
@@ -96,7 +94,7 @@ do not set it.
 | --- | --- |
 | `PROJECT` | The application to act on. Use the submodule name. Leave it unset to act on all. |
 | `PROJECTS` | The applications for the "all" behavior. Defaults to the twelve submodules. |
-| `PREFIX` | The install directory. Default `/usr/local`. |
+| `PREFIX` | The install directory. Default `$HOME/.local`. |
 | `DESTDIR` | Stage the install into a package root. |
 | `SUDO` | The privilege command, for example `sudo`. |
 | `CARGO` | The cargo command. |

@@ -1,20 +1,20 @@
 # Craft apps — one Makefile for every project.
 #
 #   make                           show the help (the default goal)
-#   make build                     build every application
-#   make build PROJECT=gridcraft   build one application
-#   make install PREFIX=$HOME/.local
-#   make update PROJECT=gridcraft PREFIX=$HOME/.local
+#   make install                   install every application
+#   make install PROJECT=gridcraft install one application
+#   make build                     build every application, without install
+#   make update                    git pull, build and install every application
 #
-# If you do not set PROJECT, the target runs for every application in PROJECTS (the -all
-# behavior). A bare `make` prints the help and does nothing else.
+# PROJECT selects one application by its submodule name. If you do not set PROJECT, the target
+# runs for every application in PROJECTS. `make install` thus installs all of them.
 #
-# Installing into a system prefix (/usr/local) needs root, but `git pull` must not run as root,
-# so pass sudo to the install step only:
+# The default PREFIX is $HOME/.local, so a normal user needs no root. For a system install, set
+# PREFIX and pass sudo to the install step only (`git pull` must not run as root):
 #
-#   make update PROJECT=gridcraft SUDO=sudo
+#   make install PREFIX=/usr/local SUDO=sudo
 #
-# Everything is overridable, e.g. `make install PROJECT=gridcraft PREFIX=$HOME/.local`.
+# Everything is overridable, e.g. `make PROJECT=gridcraft PREFIX=$HOME/.local`.
 
 ROOT     := $(CURDIR)
 PROJECTS ?= cadcraft deckcraft designcraft effectcraft filmcraft gridcraft lightcraft \
@@ -28,7 +28,9 @@ ALL :=
 endif
 
 # ---- configuration --------------------------------------------------------------------------
-PREFIX  ?= /usr/local
+# A user install (the default) needs no root. Set PREFIX=/usr/local and SUDO=sudo for a system
+# install.
+PREFIX  ?= $(HOME)/.local
 BINDIR  ?= $(PREFIX)/bin
 DATADIR ?= $(PREFIX)/share
 APPDIR  ?= $(DATADIR)/applications
@@ -206,22 +208,25 @@ endif
 help: ## Show this help
 	@echo "Craft apps — make targets:"
 	@echo ""
-	@echo "  make build     [PROJECT=name]   Build the release binaries"
-	@echo "  make install   [PROJECT=name]   Build and install, with the desktop entry on Linux"
-	@echo "  make update    [PROJECT=name]   git pull, then build and install"
-	@echo "  make uninstall [PROJECT=name]   Remove the installed files"
-	@echo "  make run       [PROJECT=name]   Start an application from source"
-	@echo "  make test      [PROJECT=name]   Run the tests"
-	@echo "  make check     [PROJECT=name]   Type-check the workspace"
-	@echo "  make ci        [PROJECT=name]   Run the full quality gate"
-	@echo "  make clean     [PROJECT=name]   Remove the build output"
+	@echo "  make                             Show this help (the default goal)"
+	@echo "  make install    [PROJECT=name]   Build and install every application"
+	@echo "  make build      [PROJECT=name]   Build the release binaries only"
+	@echo "  make update     [PROJECT=name]   git pull, then build and install"
+	@echo "  make uninstall  [PROJECT=name]   Remove the installed files"
+	@echo "  make run        [PROJECT=name]   Start an application from source"
+	@echo "  make test       [PROJECT=name]   Run the tests"
+	@echo "  make check      [PROJECT=name]   Type-check the workspace"
+	@echo "  make ci         [PROJECT=name]   Run the full quality gate"
+	@echo "  make clean      [PROJECT=name]   Remove the build output"
 	@echo ""
 	@echo "If PROJECT is unset, the target runs for every application:"
 	@echo "  $(PROJECTS)"
 	@echo ""
-	@echo "Variables: PROJECT, PROJECTS, PREFIX (default /usr/local), DESTDIR, SUDO, CARGO."
+	@echo "Variables: PROJECT, PROJECTS, PREFIX (default \$$HOME/.local), DESTDIR, SUDO, CARGO."
 	@echo ""
 	@echo "Examples:"
-	@echo "  make install PROJECT=gridcraft PREFIX=\$$HOME/.local"
-	@echo "  make update  PROJECT=gridcraft PREFIX=\$$HOME/.local"
-	@echo "  make build"
+	@echo "  make install                             # install all into \$$HOME/.local"
+	@echo "  make install PROJECT=gridcraft           # install one application"
+	@echo "  make install PREFIX=/usr/local SUDO=sudo # system install"
+	@echo ""
+	@echo "Or pick another target: build, update, uninstall, run, test, check, ci, clean."
