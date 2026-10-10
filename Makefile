@@ -1,23 +1,31 @@
 # Craft apps — one Makefile for every project.
 #
-#   make build     PROJECT=gridcraft
-#   make install   PROJECT=gridcraft PREFIX=$HOME/.local
-#   make update    PROJECT=gridcraft PREFIX=$HOME/.local
-#   make install-all PREFIX=$HOME/.local
-#   make help
+#   make                           show the help (the default goal)
+#   make build                     build every application
+#   make build PROJECT=gridcraft   build one application
+#   make install PREFIX=$HOME/.local
+#   make update PROJECT=gridcraft PREFIX=$HOME/.local
 #
-# PROJECT is the directory name of the app repo (default cadcraft). PROJECTS lists every repo
-# for the -all targets. Installing into a system prefix (/usr/local) needs root, but `git pull`
-# must not run as root, so pass sudo to the install step only:
+# If you do not set PROJECT, the target runs for every application in PROJECTS (the -all
+# behavior). A bare `make` prints the help and does nothing else.
+#
+# Installing into a system prefix (/usr/local) needs root, but `git pull` must not run as root,
+# so pass sudo to the install step only:
 #
 #   make update PROJECT=gridcraft SUDO=sudo
 #
 # Everything is overridable, e.g. `make install PROJECT=gridcraft PREFIX=$HOME/.local`.
 
 ROOT     := $(CURDIR)
-PROJECT  ?= cadcraft
 PROJECTS ?= cadcraft deckcraft designcraft effectcraft filmcraft gridcraft lightcraft \
             pdfcraft photocraft soundcraft vectorcraft wordcraft
+
+# PROJECT selects one application (a submodule name). Leave it unset to act on all of them.
+ifeq ($(origin PROJECT),undefined)
+ALL := 1
+else
+ALL :=
+endif
 
 # ---- configuration --------------------------------------------------------------------------
 PREFIX  ?= /usr/local
@@ -55,18 +63,34 @@ RUNFLAGS_soundcraft  := --demo
 RUNFLAGS_wordcraft   := --sample
 RUNFLAGS := $(RUNFLAGS_$(PROJECT))
 
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := help
+
+# Run the current target ($@) for every project by re-entering make once per project.
+define all_projects
+@for p in $(PROJECTS); do \
+  echo "== $$p =="; \
+  $(MAKE) --no-print-directory $@ PROJECT=$$p || exit 1; \
+done
+endef
 
 # ---- build ----------------------------------------------------------------------------------
 .PHONY: build
-build: ## Build PROJECT and PROJECT-cli in release mode
+build: ## Build PROJECT, or every application when PROJECT is unset
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) build --release --locked -p $(PROJECT) -p $(PROJECT)-cli
+endif
 
 # ---- install --------------------------------------------------------------------------------
 # Linux also gets the freedesktop entry, MIME type, AppStream metadata and the icon theme,
 # matching what the .deb/.rpm install. Other platforms get the two binaries on PATH.
-.PHONY: install install-desktop
-install: build ## Install PROJECT (binaries, and on Linux the desktop integration)
+.PHONY: install
+ifeq ($(ALL),1)
+install: ## Install PROJECT, or every application when PROJECT is unset
+	$(all_projects)
+else
+install: build
 	@echo "Installing $(PROJECT) $(VERSION) into $(DESTDIR)$(PREFIX)"
 	$(SUDO) install -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(DOCDIR)"
 	$(SUDO) install -m755 "$(TARGET_DIR)/$(PROJECT)" "$(DESTDIR)$(BINDIR)/$(PROJECT)"
@@ -75,13 +99,14 @@ install: build ## Install PROJECT (binaries, and on Linux the desktop integratio
 	@for f in README.md LICENSE LICENSE-MIT LICENSE-APACHE COPYRIGHT; do \
 	  [ -f "$(PROJ_DIR)/$$f" ] && $(SUDO) install -m644 "$(PROJ_DIR)/$$f" "$(DESTDIR)$(DOCDIR)/" || true; \
 	done
-
 ifeq ($(UNAME_S),Linux)
 install: install-desktop
+endif
 endif
 
 # Staged exactly as packaging/linux/package.sh stages it, so a `make install` looks to the
 # desktop, the file managers and the software centre like a package-manager install.
+.PHONY: install-desktop
 install-desktop:
 	@echo "Installing desktop entry, icons and metadata"
 	$(SUDO) install -d "$(DESTDIR)$(APPDIR)" "$(DESTDIR)$(MIMEDIR)/packages" "$(DESTDIR)$(METADIR)" "$(DESTDIR)$(ICONDIR)"
@@ -108,28 +133,21 @@ install-desktop:
 
 # ---- update ---------------------------------------------------------------------------------
 .PHONY: update
-update: ## git pull PROJECT, then build and install
+update: ## git pull PROJECT, or every application, then build and install
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	@echo "Pulling latest changes into $(PROJ_DIR)"
 	git -C "$(PROJ_DIR)" pull --ff-only
 	$(MAKE) install PROJECT=$(PROJECT)
-
-.PHONY: install-all
-install-all: ## Install every project in PROJECTS (builds each in turn)
-	@for p in $(PROJECTS); do \
-	  echo "== $$p =="; \
-	  $(MAKE) --no-print-directory install PROJECT=$$p || exit 1; \
-	done
-
-.PHONY: update-all
-update-all: ## git pull, build and install every project in PROJECTS
-	@for p in $(PROJECTS); do \
-	  echo "== $$p =="; \
-	  $(MAKE) --no-print-directory update PROJECT=$$p || exit 1; \
-	done
+endif
 
 # ---- uninstall ------------------------------------------------------------------------------
 .PHONY: uninstall
-uninstall: ## Remove the installed PROJECT files
+uninstall: ## Remove the installed PROJECT files, or every application
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	$(SUDO) rm -f "$(DESTDIR)$(BINDIR)/$(PROJECT)" "$(DESTDIR)$(BINDIR)/$(PROJECT)-cli"
 	$(SUDO) rm -rf "$(DESTDIR)$(DOCDIR)"
 ifeq ($(UNAME_S),Linux)
@@ -139,27 +157,71 @@ ifeq ($(UNAME_S),Linux)
 	$(SUDO) rm -f "$(DESTDIR)$(ICONDIR)"/hicolor/*/apps/$(APP_ID).png
 	$(SUDO) rm -f "$(DESTDIR)$(ICONDIR)"/hicolor/scalable/apps/$(APP_ID).svg
 endif
+endif
 
 # ---- development helpers --------------------------------------------------------------------
-.PHONY: run test check ci clean help
-run: ## Run PROJECT from source (with its sample/demo if it has one)
+.PHONY: run
+run: ## Run PROJECT from source, or every application
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) run --release -p $(PROJECT) $(if $(RUNFLAGS),-- $(RUNFLAGS))
+endif
 
-test: ## Run PROJECT's workspace tests
+.PHONY: test
+test: ## Run PROJECT's tests, or every application's
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) test --locked --workspace
+endif
 
-check: ## Type-check PROJECT's workspace without building artifacts
+.PHONY: check
+check: ## Type-check PROJECT, or every application
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) check --locked --workspace
+endif
 
-ci: ## Run PROJECT's full quality gate (fmt, clippy, tests, assets, layers, wasm)
+.PHONY: ci
+ci: ## Run PROJECT's quality gate, or every application's
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) xtask ci
+endif
 
-clean: ## Remove PROJECT's build artifacts and dist/
+.PHONY: clean
+clean: ## Remove PROJECT's build output, or every application's
+ifeq ($(ALL),1)
+	$(all_projects)
+else
 	cd "$(PROJ_DIR)" && $(CARGO) clean
 	rm -rf "$(PROJ_DIR)/dist"
+endif
 
+# ---- help -----------------------------------------------------------------------------------
+.PHONY: help
 help: ## Show this help
-	@echo "Craft apps — make targets (PROJECT=$(PROJECT), $(VERSION)):"
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-	  | sort \
-	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@echo "Craft apps — make targets:"
+	@echo ""
+	@echo "  make build     [PROJECT=name]   Build the release binaries"
+	@echo "  make install   [PROJECT=name]   Build and install, with the desktop entry on Linux"
+	@echo "  make update    [PROJECT=name]   git pull, then build and install"
+	@echo "  make uninstall [PROJECT=name]   Remove the installed files"
+	@echo "  make run       [PROJECT=name]   Start an application from source"
+	@echo "  make test      [PROJECT=name]   Run the tests"
+	@echo "  make check     [PROJECT=name]   Type-check the workspace"
+	@echo "  make ci        [PROJECT=name]   Run the full quality gate"
+	@echo "  make clean     [PROJECT=name]   Remove the build output"
+	@echo ""
+	@echo "If PROJECT is unset, the target runs for every application:"
+	@echo "  $(PROJECTS)"
+	@echo ""
+	@echo "Variables: PROJECT, PROJECTS, PREFIX (default /usr/local), DESTDIR, SUDO, CARGO."
+	@echo ""
+	@echo "Examples:"
+	@echo "  make install PROJECT=gridcraft PREFIX=\$$HOME/.local"
+	@echo "  make update  PROJECT=gridcraft PREFIX=\$$HOME/.local"
+	@echo "  make build"

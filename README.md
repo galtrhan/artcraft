@@ -41,15 +41,21 @@ git submodule update --init --recursive
 
 ## Build, install and update
 
-The Makefile works on one application at a time. Set `PROJECT` to the submodule name. `PROJECT`
-defaults to `cadcraft`.
+A bare `make` shows the help. Set `PROJECT` to the submodule name to act on one application.
 
 ```sh
-make help                                 # show all targets
+make                                      # show the help
 make build   PROJECT=gridcraft            # build the binaries
 make run     PROJECT=gridcraft            # start from source
 make install PROJECT=gridcraft            # install (needs root for /usr/local)
 make update  PROJECT=gridcraft            # git pull, then build and install
+```
+
+If you do not set `PROJECT`, the target runs for **every** application. For example, this
+command installs all twelve applications:
+
+```sh
+make install PREFIX=$HOME/.local
 ```
 
 A user install needs no root. Set `PREFIX` to your home directory.
@@ -66,13 +72,6 @@ privilege command to the install step only.
 make update PROJECT=gridcraft SUDO=sudo
 ```
 
-### All applications
-
-```sh
-make install-all PREFIX=$HOME/.local
-make update-all  PREFIX=$HOME/.local
-```
-
 ## Targets
 
 | Target | Function |
@@ -80,9 +79,7 @@ make update-all  PREFIX=$HOME/.local
 | `build` | Build the application and its command-line tool. |
 | `install` | Build and install. Add the desktop entry, icons and file types on Linux. |
 | `update` | Pull the latest changes, then build and install. |
-| `install-all` | Install each application in `PROJECTS`. |
-| `update-all` | Update and install each application in `PROJECTS`. |
-| `uninstall` | Remove the installed files of one application. |
+| `uninstall` | Remove the installed files. |
 | `run` | Start the application from source. |
 | `test` | Run the tests. |
 | `check` | Type-check the workspace. |
@@ -90,16 +87,19 @@ make update-all  PREFIX=$HOME/.local
 | `clean` | Remove the build output. |
 | `help` | List the targets. |
 
+Each target acts on one application when you set `PROJECT`, and on every application when you
+do not set it.
+
 ## Variables
 
-| Variable | Default | Function |
-| --- | --- | --- |
-| `PROJECT` | `cadcraft` | The application to build. Use the submodule name. |
-| `PROJECTS` | all twelve submodules | The applications for `install-all` and `update-all`. |
-| `PREFIX` | `/usr/local` | The install directory. |
-| `DESTDIR` | empty | Stage the install into a package root. |
-| `SUDO` | empty | The privilege command, for example `sudo`. |
-| `CARGO` | `cargo` | The cargo command. |
+| Variable | Function |
+| --- | --- |
+| `PROJECT` | The application to act on. Use the submodule name. Leave it unset to act on all. |
+| `PROJECTS` | The applications for the "all" behavior. Defaults to the twelve submodules. |
+| `PREFIX` | The install directory. Default `/usr/local`. |
+| `DESTDIR` | Stage the install into a package root. |
+| `SUDO` | The privilege command, for example `sudo`. |
+| `CARGO` | The cargo command. |
 
 ## Desktop entry on Linux
 
